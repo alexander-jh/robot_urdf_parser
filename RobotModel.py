@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 import pandas as pd
 import numpy as np
-
 class RobotModel:
     
     def __init__(self, urdf):
@@ -16,13 +15,16 @@ class RobotModel:
         display(self._model)
         
     def joint_idx(self):
-        return self._model[['x','y','z']]
+        idx = self._model[['x','y','z']]
+        return idx
     
     def rotation_axis(self):
-        return self._model['rot-axis']
+        rot_axis = self._model['rot-axis']
+        return rot_axis
     
-    def joint_limits(self):
-        return self._model[['angle-min', 'angle-max']]
+    def phys_limits(self):
+        limits = self._model[['length', 'angle-min', 'angle-max']]
+        return limits
     
     @staticmethod
     def __convert_aor(axis):
@@ -45,7 +47,10 @@ class RobotModel:
         
     def __fix_position(self, name, parent):
         if parent != 'base':
-            self._model.loc[name][['x','y', 'z']] += self._model.loc[parent][['x','y', 'z']]
+            P = self._model.loc[parent][['x','y', 'z']]
+            self._model.at[name, 'x'] += P['x']
+            self._model.at[name, 'y'] += P['y']
+            self._model.at[name, 'z'] += P['z']
             parent = self._model.loc[parent]['parent']
             self.__fix_position(name, parent)
         
@@ -59,7 +64,7 @@ class RobotModel:
                 xyz = to_float(joint.find('origin').attrib['xyz'])
                 aor = RobotModel.__convert_aor(to_float(joint.find('axis').attrib['xyz']))
                 low, high = float(joint.find('limit').attrib['lower']), float(joint.find('limit').attrib['lower'])
-                self._model.loc[name] = [xyz[0], xyz[1], xyz[2], aor, low, high, 0.0, parent, '']
+                self._model.at[name,:] = [xyz[0], xyz[1], xyz[2], aor, low, high, 0.0, parent, '']
                 self.__fix_position(name, parent)
                 self._model.at[name,'length'] = self.node_dist(name, parent)
                 parent = name
